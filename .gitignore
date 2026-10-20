@@ -1,0 +1,8 @@
+.github-mcp-token
+service.json
+memory.jsonl
+*.tgz
+backup-*
+.env
+.env.*
+.DS_Store

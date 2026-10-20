@@ -1,0 +1,175 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "instructions": [
+    "instructions/INSTRUCTIONS.md"
+  ],
+  "model": "opencode-go/deepseek-v4-pro",
+  "small_model": "opencode-go/deepseek-v4.1-flash",
+  "update": "notify",
+  "share": "disabled",
+  "snapshots": true,
+  "shell": "/bin/zsh",
+  "compaction": {
+    "auto": true,
+    "keep": {
+      "tokens": 24000
+    }
+  },
+  "watcher": {
+    "ignore": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.venv/**"
+    ]
+  },
+  "permissions": [
+    {
+      "action": "read",
+      "resource": "*.env",
+      "effect": "ask"
+    },
+    {
+      "action": "read",
+      "resource": "*.env.*",
+      "effect": "ask"
+    },
+    {
+      "action": "read",
+      "resource": "*.env.example",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "*/.ssh/*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*id_rsa*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*id_ed25519*",
+      "effect": "deny"
+    },
+    {
+      "action": "external_directory",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "sudo *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "rm -rf *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "rm -fr *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git push *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git reset --hard *",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git clean *",
+      "effect": "ask"
+    },
+    {
+      "action": "memory_*",
+      "resource": "*",
+      "effect": "allow"
+    }
+  ],
+  "mcp": {
+    "servers": {
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp"
+      },
+      "upwork": {
+        "type": "remote",
+        "url": "https://mcp.upwork.com/mcp"
+      },
+      "notion": {
+        "type": "remote",
+        "url": "https://mcp.notion.com/mcp"
+      },
+      "firecrawl": {
+        "type": "remote",
+        "url": "https://mcp.firecrawl.dev/v2/mcp-oauth"
+      },
+      "chrome-devtools": {
+        "type": "local",
+        "command": [
+          "{env:HOME}/.local/bin/npx",
+          "-y",
+          "chrome-devtools-mcp@latest",
+          "--executablePath",
+          "/usr/bin/brave"
+        ]
+      },
+      "crw": {
+        "type": "local",
+        "command": [
+          "{env:HOME}/.local/bin/npx",
+          "-y",
+          "crw-mcp@0.37.2"
+        ]
+      },
+      "memory": {
+        "type": "local",
+        "command": [
+          "{env:HOME}/.local/bin/npx",
+          "-y",
+          "@modelcontextprotocol/server-memory"
+        ],
+        "environment": {
+          "MEMORY_FILE_PATH": "{env:HOME}/.local/share/opencode/memory.jsonl"
+        },
+        "codemode": false,
+        "timeout": {
+          "startup": 60000
+        }
+      },
+      "playwright": {
+        "type": "local",
+        "command": [
+          "{env:HOME}/.local/bin/npx",
+          "-y",
+          "@playwright/mcp@latest",
+          "--browser",
+          "chromium",
+          "--executable-path",
+          "/usr/bin/chromium",
+          "--headless",
+          "--isolated"
+        ],
+        "timeout": {
+          "startup": 60000
+        }
+      },
+      "github": {
+        "type": "remote",
+        "url": "https://api.githubcopilot.com/mcp/",
+        "headers": {
+          "Authorization": "Bearer {file:~/.config/opencode/.github-mcp-token}"
+        }
+      }
+    }
+  }
+}
