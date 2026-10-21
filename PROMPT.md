@@ -264,11 +264,12 @@ python3 "$SETUP/scripts/patch-usage-tui.py"
 What you get, below the MCP list:
 
 ```text
-▼ USAGE · Go
-Rolling █░░░░░░░░░   6%  ↻ 4h40m12s
-Weekly  ██░░░░░░░░  17%  ↻ 4d16h
-Monthly ██████░░░░  55%  ↻ 22d8h
-▼ MODELS · this session
+▼ USAGE · GO
+Rolling ━─────────  12%  ↻ 3h45m32s
+Weekly  ━━────────  19%  ↻    4d15h
+Monthly ━━━━━━────  56%  ↻    22d7h
+──────────────────────────────
+▼ MODELS · THIS SESSION
 deepseek-v4.1-flash $0.01   49k tok
 glm-5.3-flash       $0.01   47k tok
 ```
@@ -276,6 +277,7 @@ glm-5.3-flash       $0.01   47k tok
 - The built-in **Context** section is not replaced.
 - **MODELS** lists every model used in the current session, with cost and total tokens per model.
 - The rolling reset counts down every second; Go usage refreshes every 10 seconds; the model list updates every second.
+- Bars turn amber above 75% and red above 90%.
 - MCP remains the built-in section; click its header to collapse it.
 - `/usage` shows dollar values and reset times.
 - If the sidebar is hidden, widen the terminal or toggle it with `<leader>b` (`ctrl+x`, then `b`).

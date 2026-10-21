@@ -158,6 +158,8 @@ function View(props: ViewProps) {
   const context = usePlugin()
   const text = context.theme.text
   const green = (text as any).feedback?.success?.base ?? text.base
+  const warning = (text as any).feedback?.warning?.base ?? text.base
+  const error = (text as any).feedback?.error?.base ?? text.base
 
   const current = () => {
     props.clock()
@@ -181,7 +183,7 @@ function View(props: ViewProps) {
     <box>
       <box onMouseUp={() => props.setUsageOpen(!props.usageOpen())}>
         <text fg={text.base}>
-          <b>{`${props.usageOpen() ? "▼" : "▶"} USAGE · Go`}</b>
+          <b>{`${props.usageOpen() ? "▼" : "▶"} USAGE · GO`}</b>
         </text>
       </box>
       <Show when={props.usageOpen()}>
@@ -191,12 +193,13 @@ function View(props: ViewProps) {
               {WINDOWS.map((w) => {
                 const p = Math.max(0, Math.min(100, data()[w].percent))
                 const filled = Math.max(0, Math.min(10, Math.round((p / 100) * 10)))
+                const tone = p >= 90 ? error : p >= 75 ? warning : green
                 return (
                   <text fg={text.muted}>
-                    {`${LABELS[w].padEnd(7)} `}
-                    <span style={{ fg: green }}>{"█".repeat(filled)}</span>
-                    <span style={{ fg: text.muted }}>{"░".repeat(10 - filled)}</span>
-                    {` ${String(p).padStart(3)}%  ↻ ${resetsIn(data()[w].resetsAt, now())}`}
+                    {`${LABELS[w].padEnd(8)}`}
+                    <span style={{ fg: tone }}>{"━".repeat(filled)}</span>
+                    <span style={{ fg: text.muted }}>{"─".repeat(10 - filled)}</span>
+                    {` ${String(p).padStart(3)}%  ↻ ${resetsIn(data()[w].resetsAt, now()).padStart(8)}`}
                   </text>
                 )
               })}
@@ -205,9 +208,11 @@ function View(props: ViewProps) {
         </Show>
       </Show>
 
+      <text fg={text.muted}>{"─".repeat(30)}</text>
+
       <box onMouseUp={() => props.setModelsOpen(!props.modelsOpen())}>
         <text fg={text.base}>
-          <b>{`${props.modelsOpen() ? "▼" : "▶"} MODELS · this session`}</b>
+          <b>{`${props.modelsOpen() ? "▼" : "▶"} MODELS · THIS SESSION`}</b>
         </text>
       </box>
       <Show when={props.modelsOpen()}>
