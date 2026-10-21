@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { homedir } from "node:os"
-import { createSignal, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createSignal, Show } from "solid-js"
 import { Plugin, usePlugin } from "@opencode/plugin/tui"
 // @ts-ignore - Bun provides this at runtime
 import { Database } from "bun:sqlite"
@@ -88,10 +88,6 @@ function readModelRows(sessionID?: string): ModelRow[] {
   }
 }
 
-const [usage, setUsage] = createSignal<Usage | null>(readCache())
-const [usageOpen, setUsageOpen] = createSignal(true)
-const [modelsOpen, setModelsOpen] = createSignal(true)
-
 function readKey(): string | undefined {
   try {
     const base = process.env.XDG_DATA_HOME ?? `${homedir()}/.local/share`
@@ -102,34 +98,19 @@ function readKey(): string | undefined {
   }
 }
 
-async function refresh(): Promise<void> {
-  const key = readKey()
-  if (!key) {
-    setUsage(null)
-    return
-  }
-  try {
-    const res = await fetch(ENDPOINT, { headers: { Authorization: `Bearer ${key}` } })
-    if (res.ok) {
-      const next = (await res.json()).usage as Usage
-      setUsage(next)
-      writeCache(next)
-    }
-  } catch {}
-}
-
 function money(percent: number, cap: number): string {
   return `$${((percent / 100) * cap).toFixed(2)}`
 }
 
-function resetsIn(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.parse(iso) - Date.now()) / 60_000))
-  if (mins < 60) return `${mins}m`
-  const d = Math.floor(mins / 1440)
-  const h = Math.floor((mins % 1440) / 60)
-  const m = mins % 60
+function resetsIn(iso: string, now: number = Date.now()): string {
+  const secs = Math.max(0, Math.round((Date.parse(iso) - now) / 1000))
+  const d = Math.floor(secs / 86400)
+  const h = Math.floor((secs % 86400) / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = secs % 60
   if (d > 0) return `${d}d${h}h`
-  return `${h}h${m}m`
+  if (h > 0) return `${h}h${m}m${s}s`
+  return `${m}m${s}s`
 }
 
 function formatTokens(n: number): string {
@@ -163,31 +144,48 @@ function modelLine(name: string, cost: number, tokens: string) {
 const WINDOWS = ["rolling", "weekly", "monthly"] as const
 const LABELS = { rolling: "Rolling", weekly: "Weekly", monthly: "Monthly" } as const
 
-function View(props: { sessionID?: string }) {
+type ViewProps = {
+  sessionID?: string
+  usage: () => Usage | null
+  clock: () => number
+  usageOpen: () => boolean
+  setUsageOpen: any
+  modelsOpen: () => boolean
+  setModelsOpen: any
+}
+
+function View(props: ViewProps) {
   const context = usePlugin()
   const text = context.theme.text
   const green = (text as any).feedback?.success?.base ?? text.base
-  const current = () => modelInfo(context, props.sessionID)
-  const [cached, setCached] = createSignal<Usage | null>(readCache())
-  const [modelRows, setModelRows] = createSignal<ModelRow[]>(readModelRows(props.sessionID))
 
-  onMount(() => {
-    const timer = setInterval(() => {
-      setCached(readCache())
-      setModelRows(readModelRows(props.sessionID))
-    }, 1000)
-    onCleanup(() => clearInterval(timer))
+  const current = () => {
+    props.clock()
+    return modelInfo(context, props.sessionID)
+  }
+  const currentUsage = () => {
+    props.clock()
+    return props.usage() ?? readCache()
+  }
+  const now = () => {
+    props.clock()
+    return Date.now()
+  }
+  const [modelRows, setModelRows] = createSignal<ModelRow[]>(readModelRows(props.sessionID))
+  createEffect(() => {
+    props.clock()
+    setModelRows(readModelRows(props.sessionID))
   })
 
-  return (
+  const renderView = () => (
     <box>
-      <box onMouseUp={() => setUsageOpen(!usageOpen())}>
+      <box onMouseUp={() => props.setUsageOpen(!props.usageOpen())}>
         <text fg={text.base}>
-          <b>{`${usageOpen() ? "▼" : "▶"} USAGE · Go`}</b>
+          <b>{`${props.usageOpen() ? "▼" : "▶"} USAGE · Go`}</b>
         </text>
       </box>
-      <Show when={usageOpen()}>
-        <Show when={cached()} fallback={<text fg={text.muted}>no usage data</text>}>
+      <Show when={props.usageOpen()}>
+        <Show when={currentUsage()} fallback={<text fg={text.muted}>no usage data</text>}>
           {(data) => (
             <>
               {WINDOWS.map((w) => {
@@ -198,7 +196,7 @@ function View(props: { sessionID?: string }) {
                     {`${LABELS[w].padEnd(7)} `}
                     <span style={{ fg: green }}>{"█".repeat(filled)}</span>
                     <span style={{ fg: text.muted }}>{"░".repeat(10 - filled)}</span>
-                    {` ${String(p).padStart(3)}%  ↻ ${resetsIn(data()[w].resetsAt)}`}
+                    {` ${String(p).padStart(3)}%  ↻ ${resetsIn(data()[w].resetsAt, now())}`}
                   </text>
                 )
               })}
@@ -207,12 +205,12 @@ function View(props: { sessionID?: string }) {
         </Show>
       </Show>
 
-      <box onMouseUp={() => setModelsOpen(!modelsOpen())}>
+      <box onMouseUp={() => props.setModelsOpen(!props.modelsOpen())}>
         <text fg={text.base}>
-          <b>{`${modelsOpen() ? "▼" : "▶"} MODELS · this session`}</b>
+          <b>{`${props.modelsOpen() ? "▼" : "▶"} MODELS · this session`}</b>
         </text>
       </box>
-      <Show when={modelsOpen()}>
+      <Show when={props.modelsOpen()}>
         <Show
           when={modelRows().length > 0}
           fallback={
@@ -228,17 +226,55 @@ function View(props: { sessionID?: string }) {
       </Show>
     </box>
   )
+  return <>{() => renderView()}</>
 }
 
 export default Plugin.define({
   id: "usage",
   async setup(context) {
+    const [usageState, setUsageState] = createSignal<Usage | null>(readCache())
+    const [usageOpen, setUsageOpen] = createSignal(true)
+    const [modelsOpen, setModelsOpen] = createSignal(true)
+    const [clock, setClock] = createSignal(0)
+
+    const refresh = async () => {
+      const key = readKey()
+      if (!key) {
+        setUsageState(null)
+        return
+      }
+      try {
+        const res = await fetch(ENDPOINT, { headers: { Authorization: `Bearer ${key}` } })
+        if (res.ok) {
+          const next = (await res.json()).usage as Usage
+          setUsageState(next)
+          writeCache(next)
+        }
+      } catch {}
+    }
+
     void refresh()
-    const timer = setInterval(refresh, 60_000)
+    const timer = setInterval(refresh, 10_000)
+    const clockTimer = setInterval(() => {
+      setClock((v) => v + 1)
+      const renderer: any = (context as any).renderer
+      renderer?.requestRender?.()
+      renderer?.markDirty?.()
+    }, 1000)
 
     context.ui.slot({
       append: "sidebar.content",
-      render: (input: any) => <View sessionID={input?.sessionID} />,
+      render: (input: any) => (
+        <View
+          sessionID={input?.sessionID}
+          usage={usageState}
+          clock={clock}
+          usageOpen={usageOpen}
+          setUsageOpen={setUsageOpen}
+          modelsOpen={modelsOpen}
+          setModelsOpen={setModelsOpen}
+        />
+      ),
     })
 
     context.keymap.layer(() => ({
@@ -251,7 +287,7 @@ export default Plugin.define({
           palette: true,
           slash: { name: "usage" },
           run() {
-            const u = usage() ?? readCache()
+            const u = usageState() ?? readCache()
             if (!u) {
               context.ui.toast.show({
                 variant: "warning",
@@ -272,6 +308,9 @@ export default Plugin.define({
       ],
     }))
 
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      clearInterval(clockTimer)
+    }
   },
 })

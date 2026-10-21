@@ -265,7 +265,7 @@ What you get, below the MCP list:
 
 ```text
 ▼ USAGE · Go
-Rolling █░░░░░░░░░   6%  ↻ 4h40m
+Rolling █░░░░░░░░░   6%  ↻ 4h40m12s
 Weekly  ██░░░░░░░░  17%  ↻ 4d16h
 Monthly ██████░░░░  55%  ↻ 22d8h
 ▼ MODELS · this session
@@ -275,6 +275,7 @@ glm-5.3-flash       $0.01   47k tok
 
 - The built-in **Context** section is not replaced.
 - **MODELS** lists every model used in the current session, with cost and total tokens per model.
+- The rolling reset counts down every second; Go usage refreshes every 10 seconds; the model list updates every second.
 - MCP remains the built-in section; click its header to collapse it.
 - `/usage` shows dollar values and reset times.
 - If the sidebar is hidden, widen the terminal or toggle it with `<leader>b` (`ctrl+x`, then `b`).
