@@ -255,7 +255,7 @@ PY
 shred -u /tmp/opencode-auth.json 2>/dev/null || rm -f /tmp/opencode-auth.json
 ```
 
-Add bars and reset countdowns to the plugin's own Usage row:
+Install the two-section sidebar view:
 
 ```bash
 python3 "$SETUP/scripts/patch-usage-tui.py"
@@ -264,13 +264,17 @@ python3 "$SETUP/scripts/patch-usage-tui.py"
 What you get, below the MCP list:
 
 ```text
-Usage
-Rolling █░░░░░░░░░   6%  4h40m
-Weekly  ██░░░░░░░░  17%  4d16h
-Monthly ██████░░░░  55%  22d8h
+▼ USAGE · Go
+Rolling █░░░░░░░░░   6%  ↻ 4h40m
+Weekly  ██░░░░░░░░  17%  ↻ 4d16h
+Monthly ██████░░░░  55%  ↻ 22d8h
+▼ MODELS · this session
+deepseek-v4-pro        $0.03  49k tok
 ```
 
 - The built-in **Context** section is not replaced.
+- The **MODELS** row reads the current session's model, cost, and token total.
+- MCP remains the built-in section; click its header to collapse it.
 - `/usage` shows dollar values and reset times.
 - If the sidebar is hidden, widen the terminal or toggle it with `<leader>b` (`ctrl+x`, then `b`).
 - Re-run the patch after updating `opencode-usage-tui`; the package source is replaced on update.
