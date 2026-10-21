@@ -8,10 +8,12 @@ import { Plugin, usePlugin } from "@opencode/plugin/tui"
 import { Database } from "bun:sqlite"
 
 const CAPS = { rolling: 12, weekly: 30, monthly: 60 } as const
-const ENDPOINT = "https://opencode.ai/zen/go/v1/usage"
+const USAGE_ENDPOINT = "https://opencode.ai/zen/go/v1/usage"
+const CONSOLE_ENDPOINT = "https://opencode.ai/console/api/go/status"
 
 type Window = { status: string; percent: number; resetsAt: string }
 type Usage = Record<keyof typeof CAPS, Window>
+type Snapshot = { usage: Usage; renewal?: string }
 type ModelRow = { name: string; cost: number; tokens: number }
 
 const CACHE =
@@ -24,18 +26,21 @@ const DB =
     ? `${process.env.XDG_DATA_HOME}/opencode/opencode.db`
     : `${homedir()}/.local/share/opencode/opencode.db`
 
-function readCache(): Usage | null {
+function readCache(): Snapshot | null {
   try {
-    return JSON.parse(readFileSync(CACHE, "utf8"))
+    const parsed = JSON.parse(readFileSync(CACHE, "utf8"))
+    if (parsed?.usage?.rolling) return { usage: parsed.usage, renewal: parsed.renewal }
+    if (parsed?.rolling) return { usage: parsed }
+    return null
   } catch {
     return null
   }
 }
 
-function writeCache(usage: Usage): void {
+function writeCache(snapshot: Snapshot): void {
   try {
     mkdirSync(dirname(CACHE), { recursive: true })
-    writeFileSync(CACHE, JSON.stringify(usage))
+    writeFileSync(CACHE, JSON.stringify(snapshot))
   } catch {}
 }
 
@@ -102,8 +107,42 @@ function money(percent: number, cap: number): string {
   return `$${((percent / 100) * cap).toFixed(2)}`
 }
 
+function renewalLabel(iso?: string): string | undefined {
+  if (!iso) return undefined
+  const date = new Date(iso)
+  if (!Number.isFinite(date.getTime())) return undefined
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function meterPercent(meter: any): number {
+  const used = Number(meter?.usedMicroCents ?? NaN)
+  const limit = Number(meter?.limitMicroCents ?? NaN)
+  if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return 0
+  return Math.max(0, Math.min(100, Math.round((used / limit) * 100)))
+}
+
+function snapshotFromConsole(status: any): Snapshot | null {
+  const meters = status?.access?.meters
+  if (!meters) return null
+  const win = (meter: any): Window => ({
+    status: String(meter?.status ?? "ok"),
+    percent: meterPercent(meter),
+    resetsAt: String(meter?.resetsAt ?? ""),
+  })
+  return {
+    usage: {
+      rolling: win(meters.fiveHour),
+      weekly: win(meters.week),
+      monthly: win(meters.month),
+    },
+    renewal: renewalLabel(status?.access?.endsAt) ?? renewalLabel(meters.month?.resetsAt),
+  }
+}
+
 function resetsIn(iso: string, now: number = Date.now()): string {
-  const secs = Math.max(0, Math.round((Date.parse(iso) - now) / 1000))
+  const at = Date.parse(iso)
+  if (!Number.isFinite(at)) return "—"
+  const secs = Math.max(0, Math.round((at - now) / 1000))
   const d = Math.floor(secs / 86400)
   const h = Math.floor((secs % 86400) / 3600)
   const m = Math.floor((secs % 3600) / 60)
@@ -146,7 +185,7 @@ const LABELS = { rolling: "Rolling", weekly: "Weekly", monthly: "Monthly" } as c
 
 type ViewProps = {
   sessionID?: string
-  usage: () => Usage | null
+  usage: () => Snapshot | null
   clock: () => number
   usageOpen: () => boolean
   setUsageOpen: any
@@ -188,23 +227,29 @@ function View(props: ViewProps) {
       </box>
       <Show when={props.usageOpen()}>
         <Show when={currentUsage()} fallback={<text fg={text.muted}>no usage data</text>}>
-          {(data) => (
-            <>
-              {WINDOWS.map((w) => {
-                const p = Math.max(0, Math.min(100, data()[w].percent))
-                const filled = Math.max(0, Math.min(10, Math.round((p / 100) * 10)))
-                const tone = p >= 90 ? error : p >= 75 ? warning : green
-                return (
-                  <text fg={text.muted}>
-                    {`${LABELS[w].padEnd(8)}`}
-                    <span style={{ fg: tone }}>{"━".repeat(filled)}</span>
-                    <span style={{ fg: text.muted }}>{"─".repeat(10 - filled)}</span>
-                    {` ${String(p).padStart(3)}%  ↻ ${resetsIn(data()[w].resetsAt, now()).padStart(8)}`}
-                  </text>
-                )
-              })}
-            </>
-          )}
+          {(snapshot) => {
+            const data = snapshot().usage
+            return (
+              <>
+                <Show when={snapshot().renewal}>
+                  {(renewal) => <text fg={text.muted}>{`renews ${renewal()}`}</text>}
+                </Show>
+                {WINDOWS.map((w) => {
+                  const p = Math.max(0, Math.min(100, data[w].percent))
+                  const filled = Math.max(0, Math.min(10, Math.round((p / 100) * 10)))
+                  const tone = p >= 90 ? error : p >= 75 ? warning : green
+                  return (
+                    <text fg={text.muted}>
+                      {`${LABELS[w].padEnd(8)}`}
+                      <span style={{ fg: tone }}>{"━".repeat(filled)}</span>
+                      <span style={{ fg: text.muted }}>{"─".repeat(10 - filled)}</span>
+                      {` ${String(p).padStart(3)}%  ↻ ${resetsIn(data[w].resetsAt, now()).padStart(8)}`}
+                    </text>
+                  )
+                })}
+              </>
+            )
+          }}
         </Show>
       </Show>
 
@@ -237,7 +282,7 @@ function View(props: ViewProps) {
 export default Plugin.define({
   id: "usage",
   async setup(context) {
-    const [usageState, setUsageState] = createSignal<Usage | null>(readCache())
+    const [usageState, setUsageState] = createSignal<Snapshot | null>(readCache())
     const [usageOpen, setUsageOpen] = createSignal(true)
     const [modelsOpen, setModelsOpen] = createSignal(true)
     const [clock, setClock] = createSignal(0)
@@ -248,12 +293,28 @@ export default Plugin.define({
         setUsageState(null)
         return
       }
+
       try {
-        const res = await fetch(ENDPOINT, { headers: { Authorization: `Bearer ${key}` } })
+        const res = await fetch(CONSOLE_ENDPOINT, {
+          headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
+        })
         if (res.ok) {
-          const next = (await res.json()).usage as Usage
-          setUsageState(next)
-          writeCache(next)
+          const snapshot = snapshotFromConsole(await res.json())
+          if (snapshot) {
+            setUsageState(snapshot)
+            writeCache(snapshot)
+            return
+          }
+        }
+      } catch {}
+
+      try {
+        const res = await fetch(USAGE_ENDPOINT, { headers: { Authorization: `Bearer ${key}` } })
+        if (res.ok) {
+          const usage = (await res.json()).usage as Usage
+          const snapshot = { usage, renewal: renewalLabel(usage.monthly?.resetsAt) }
+          setUsageState(snapshot)
+          writeCache(snapshot)
         }
       } catch {}
     }
@@ -292,7 +353,8 @@ export default Plugin.define({
           palette: true,
           slash: { name: "usage" },
           run() {
-            const u = usageState() ?? readCache()
+            const snapshot = usageState() ?? readCache()
+            const u = snapshot?.usage
             if (!u) {
               context.ui.toast.show({
                 variant: "warning",
@@ -301,12 +363,15 @@ export default Plugin.define({
               })
               return
             }
+            const head = snapshot?.renewal ? `Go · renews ${snapshot.renewal}\n` : ""
             context.ui.toast.show({
               title: "OpenCode Go usage",
-              message: WINDOWS.map(
-                (w) =>
-                  `${LABELS[w]}: ${u[w].percent}% (${money(u[w].percent, CAPS[w])}) · resets in ${resetsIn(u[w].resetsAt)}`,
-              ).join("\n"),
+              message:
+                head +
+                WINDOWS.map(
+                  (w) =>
+                    `${LABELS[w]}: ${u[w].percent}% (${money(u[w].percent, CAPS[w])}) · resets in ${resetsIn(u[w].resetsAt)}`,
+                ).join("\n"),
             })
           },
         },

@@ -12,7 +12,7 @@ Private, sanitized setup for replicating an OpenCode v2 configuration with ECC, 
 - Zero failed plugins; `ecc-barrel`, `ecc-hooks`, and `i-have-adhd` active
 - Always-on ADHD output plugin and English/French natural-writing style
 - Persistent memory via `@modelcontextprotocol/server-memory`
-- Live sidebar usage: `opencode-usage-tui`, patched into a professional `USAGE · GO` panel (aligned bars/resets) and a `MODELS · THIS SESSION` list of every model used; rolling countdown ticks every second; Context untouched
+- Live sidebar usage: `opencode-usage-tui`, patched against the same `console/api/go/status` source as the OpenCode overview; `USAGE · GO` with renews date and aligned bars/resets, plus `MODELS · THIS SESSION`; rolling countdown ticks every second; Context untouched
 - GitHub MCP verified with `get_me`; Playwright verified against `https://example.com`
 - ECC fork commit `a5d6d4d6` (type-only TypeScript 6 fix)
 

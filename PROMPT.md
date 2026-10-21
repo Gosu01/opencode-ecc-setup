@@ -265,15 +265,17 @@ What you get, below the MCP list:
 
 ```text
 ▼ USAGE · GO
-Rolling ━─────────  12%  ↻ 3h45m32s
-Weekly  ━━────────  19%  ↻    4d15h
-Monthly ━━━━━━────  56%  ↻    22d7h
+renews Nov 12
+Rolling ━─────────  14%  ↻ 3h41m02s
+Weekly  ━━────────  21%  ↻    4d15h
+Monthly ━━━━━━────  57%  ↻    22d7h
 ──────────────────────────────
 ▼ MODELS · THIS SESSION
 deepseek-v4.1-flash $0.01   49k tok
 glm-5.3-flash       $0.01   47k tok
 ```
 
+- The panel reads the same `console/api/go/status` endpoint as the OpenCode Console overview, with the Go usage API as fallback.
 - The built-in **Context** section is not replaced.
 - **MODELS** lists every model used in the current session, with cost and total tokens per model.
 - The rolling reset counts down every second; Go usage refreshes every 10 seconds; the model list updates every second.
