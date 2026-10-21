@@ -12,7 +12,7 @@ Private, sanitized setup for replicating an OpenCode v2 configuration with ECC, 
 - Zero failed plugins; `ecc-barrel`, `ecc-hooks`, and `i-have-adhd` active
 - Always-on ADHD output plugin and English/French natural-writing style
 - Persistent memory via `@modelcontextprotocol/server-memory`
-- Live sidebar usage: `opencode-usage-tui` for OpenCode Go windows and `opencode-spend` for session spend by model/agent
+- Live sidebar usage: `opencode-usage-tui`, patched for bars and reset countdowns; the built-in Context section is untouched
 - GitHub MCP verified with `get_me`; Playwright verified against `https://example.com`
 - ECC fork commit `a5d6d4d6` (type-only TypeScript 6 fix)
 
@@ -25,6 +25,7 @@ Private, sanitized setup for replicating an OpenCode v2 configuration with ECC, 
 - **`skills/natural-writing/SKILL.md`** — English/French prose style.
 - **`skills/langflow-workflows/SKILL.md`** — LangFlow 1.x flows, custom components, API/webhooks, deployment.
 - **`scripts/convert-ecc.js`** — converts ECC agents/commands to OpenCode v2 markdown and merges the base config.
+- **`scripts/patch-usage-tui.py`** — adds bars and reset countdowns to the Usage sidebar row.
 - **`scripts/health-check.sh`** — verifies MCPs, plugins, skills, agents, and commands.
 
 ## How to use
