@@ -4,17 +4,25 @@ import { dirname } from "node:path"
 import { homedir } from "node:os"
 import { createSignal, onCleanup, onMount, Show } from "solid-js"
 import { Plugin, usePlugin } from "@opencode/plugin/tui"
+// @ts-ignore - Bun provides this at runtime
+import { Database } from "bun:sqlite"
 
 const CAPS = { rolling: 12, weekly: 30, monthly: 60 } as const
 const ENDPOINT = "https://opencode.ai/zen/go/v1/usage"
 
 type Window = { status: string; percent: number; resetsAt: string }
 type Usage = Record<keyof typeof CAPS, Window>
+type ModelRow = { name: string; cost: number; tokens: number }
 
 const CACHE =
   process.env.XDG_CACHE_HOME
     ? `${process.env.XDG_CACHE_HOME}/opencode/go-usage.json`
     : `${homedir()}/.cache/opencode/go-usage.json`
+
+const DB =
+  process.env.XDG_DATA_HOME
+    ? `${process.env.XDG_DATA_HOME}/opencode/opencode.db`
+    : `${homedir()}/.local/share/opencode/opencode.db`
 
 function readCache(): Usage | null {
   try {
@@ -29,6 +37,55 @@ function writeCache(usage: Usage): void {
     mkdirSync(dirname(CACHE), { recursive: true })
     writeFileSync(CACHE, JSON.stringify(usage))
   } catch {}
+}
+
+let db: any = null
+function getDb(): any {
+  if (db) return db
+  try {
+    db = new Database(DB, { readonly: true })
+  } catch {
+    db = null
+  }
+  return db
+}
+
+function readModelRows(sessionID?: string): ModelRow[] {
+  if (!sessionID) return []
+  try {
+    const stmt = getDb()?.prepare(
+      "SELECT data FROM session_message WHERE session_id = ? AND type = 'assistant'",
+    )
+    const rows = (stmt?.all(sessionID) ?? []) as Array<{ data: string }>
+    const groups = new Map<string, ModelRow>()
+    for (const row of rows) {
+      let data: any
+      try {
+        data = JSON.parse(String(row.data))
+      } catch {
+        continue
+      }
+      const model: any = data?.model
+      const name = typeof model === "string" ? model : model?.id
+      if (!name) continue
+      const cost = typeof data.cost === "number" ? data.cost : 0
+      const t: any = data.tokens ?? {}
+      const tokens =
+        (t.input ?? 0) +
+        (t.output ?? 0) +
+        (t.reasoning ?? 0) +
+        (t.cache?.read ?? 0) +
+        (t.cache?.write ?? 0)
+      if (cost === 0 && tokens === 0) continue
+      const group = groups.get(name) ?? { name, cost: 0, tokens: 0 }
+      group.cost += cost
+      group.tokens += tokens
+      groups.set(name, group)
+    }
+    return [...groups.values()].sort((a, b) => b.cost - a.cost)
+  } catch {
+    return []
+  }
 }
 
 const [usage, setUsage] = createSignal<Usage | null>(readCache())
@@ -75,6 +132,12 @@ function resetsIn(iso: string): string {
   return `${h}h${m}m`
 }
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`
+  return String(n)
+}
+
 function modelInfo(context: any, sessionID?: string) {
   const session = sessionID ? context?.data?.session?.get(sessionID) : undefined
   if (!session) return { name: "no session", cost: 0, tokens: "0" }
@@ -88,13 +151,13 @@ function modelInfo(context: any, sessionID?: string) {
     (t.reasoning ?? 0) +
     (t.cache?.read ?? 0) +
     (t.cache?.write ?? 0)
-  const tokens =
-    total >= 1_000_000
-      ? `${(total / 1_000_000).toFixed(1)}m`
-      : total >= 1_000
-        ? `${Math.round(total / 1_000)}k`
-        : `${total}`
-  return { name: String(name), cost, tokens }
+  return { name: String(name), cost, tokens: formatTokens(total) }
+}
+
+function modelLine(name: string, cost: number, tokens: string) {
+  const money = cost > 0 ? `$${cost.toFixed(2)}` : "free"
+  const label = name.length > 19 ? `${name.slice(0, 18)}…` : name.padEnd(19)
+  return `${label} ${money.padStart(5)}  ${tokens.padStart(4)} tok`
 }
 
 const WINDOWS = ["rolling", "weekly", "monthly"] as const
@@ -106,9 +169,13 @@ function View(props: { sessionID?: string }) {
   const green = (text as any).feedback?.success?.base ?? text.base
   const current = () => modelInfo(context, props.sessionID)
   const [cached, setCached] = createSignal<Usage | null>(readCache())
+  const [modelRows, setModelRows] = createSignal<ModelRow[]>(readModelRows(props.sessionID))
 
   onMount(() => {
-    const timer = setInterval(() => setCached(readCache()), 1000)
+    const timer = setInterval(() => {
+      setCached(readCache())
+      setModelRows(readModelRows(props.sessionID))
+    }, 1000)
     onCleanup(() => clearInterval(timer))
   })
 
@@ -146,10 +213,18 @@ function View(props: { sessionID?: string }) {
         </text>
       </box>
       <Show when={modelsOpen()}>
-        <text fg={text.base}>
-          {current().name.slice(0, 22).padEnd(22)}
-          <span style={{ fg: text.muted }}>{` $${current().cost.toFixed(2)}  ${current().tokens} tok`}</span>
-        </text>
+        <Show
+          when={modelRows().length > 0}
+          fallback={
+            <text fg={text.base}>
+              {modelLine(current().name, current().cost, current().tokens)}
+            </text>
+          }
+        >
+          {modelRows().map((row) => (
+            <text fg={text.base}>{modelLine(row.name, row.cost, formatTokens(row.tokens))}</text>
+          ))}
+        </Show>
       </Show>
     </box>
   )

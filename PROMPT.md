@@ -269,11 +269,12 @@ Rolling █░░░░░░░░░   6%  ↻ 4h40m
 Weekly  ██░░░░░░░░  17%  ↻ 4d16h
 Monthly ██████░░░░  55%  ↻ 22d8h
 ▼ MODELS · this session
-deepseek-v4-pro        $0.03  49k tok
+deepseek-v4.1-flash $0.01   49k tok
+glm-5.3-flash       $0.01   47k tok
 ```
 
 - The built-in **Context** section is not replaced.
-- The **MODELS** row reads the current session's model, cost, and token total.
+- **MODELS** lists every model used in the current session, with cost and total tokens per model.
 - MCP remains the built-in section; click its header to collapse it.
 - `/usage` shows dollar values and reset times.
 - If the sidebar is hidden, widen the terminal or toggle it with `<leader>b` (`ctrl+x`, then `b`).
