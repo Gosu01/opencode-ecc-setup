@@ -222,6 +222,51 @@ git clone --depth 1 https://github.com/soba-labs/langchain-agent-skills /tmp/lan
 cp -R /tmp/langchain-agent-skills/skills/langgraph-agent-patterns "$HOME/.agents/skills/"
 ```
 
+## 6.5 Live usage sidebar
+
+Install the TUI plugins:
+
+```bash
+opencode plugin add opencode-usage-tui
+opencode plugin add opencode-spend
+```
+
+Then disable the built-in Context section and order the plugins:
+
+```bash
+python3 - <<'PY'
+import json, os
+p = os.path.expanduser('~/.config/opencode/cli.json')
+c = json.load(open(p))
+c['plugins'] = ['-opencode.sidebar.context', 'opencode-usage-tui', 'opencode-spend']
+c.setdefault('session', {})['sidebar'] = 'auto'
+json.dump(c, open(p, 'w'), indent=2)
+PY
+```
+
+`opencode-usage-tui` reads the legacy `auth.json`; OpenCode v2 stores the Go key in SQLite. Bridge only that key, never print it:
+
+```bash
+opencode auth export > /tmp/opencode-auth.json
+python3 - <<'PY'
+import json, os
+d = json.load(open('/tmp/opencode-auth.json'))
+key = next(x['value']['key'] for x in d if x.get('integrationID') == 'opencode-go')
+p = os.path.expanduser('~/.local/share/opencode/auth.json')
+json.dump({'opencode-go': {'type': 'key', 'key': key}}, open(p, 'w'))
+os.chmod(p, 0o600)
+PY
+shred -u /tmp/opencode-auth.json 2>/dev/null || rm -f /tmp/opencode-auth.json
+```
+
+What you get:
+
+- `Usage`: 5-hour, Weekly, and Monthly percentages in the sidebar. Run `/usage` for dollar values and reset times.
+- `Context`: session context bar and true spend. Click the header to expand **By model**, **By agent**, and token breakdowns.
+- If the sidebar is hidden, widen the terminal or toggle it with `<leader>b` (`ctrl+x`, then `b`).
+
+`opencode-usage-tui` refreshes every five minutes. `opencode-spend` expands per session and remembers which sections you opened.
+
 ## 7. Configure the nine MCP servers
 
 Resolve your own executable paths:

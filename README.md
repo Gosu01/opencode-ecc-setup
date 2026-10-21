@@ -12,6 +12,7 @@ Private, sanitized setup for replicating an OpenCode v2 configuration with ECC, 
 - Zero failed plugins; `ecc-barrel`, `ecc-hooks`, and `i-have-adhd` active
 - Always-on ADHD output plugin and English/French natural-writing style
 - Persistent memory via `@modelcontextprotocol/server-memory`
+- Live sidebar usage: `opencode-usage-tui` for OpenCode Go windows and `opencode-spend` for session spend by model/agent
 - GitHub MCP verified with `get_me`; Playwright verified against `https://example.com`
 - ECC fork commit `a5d6d4d6` (type-only TypeScript 6 fix)
 
@@ -20,6 +21,7 @@ Private, sanitized setup for replicating an OpenCode v2 configuration with ECC, 
 - **`PROMPT.md`** — copy-paste runbook for a fresh machine. This is the main deliverable.
 - **`AGENTS.md`** — global instruction template (workflow, ADHD, natural writing, memory, automation routing).
 - **`opencode.example.json`** — sanitized reference config. Paths and tokens are placeholders.
+- **`cli.example.json`** — TUI plugin list for the live usage sidebar.
 - **`skills/natural-writing/SKILL.md`** — English/French prose style.
 - **`skills/langflow-workflows/SKILL.md`** — LangFlow 1.x flows, custom components, API/webhooks, deployment.
 - **`scripts/convert-ecc.js`** — converts ECC agents/commands to OpenCode v2 markdown and merges the base config.

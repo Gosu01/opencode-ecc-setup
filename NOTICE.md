@@ -7,6 +7,8 @@ This setup bundles or installs skills from these MIT-licensed projects:
 - **i-have-adhd** — https://github.com/ayghri/i-have-adhd (MIT)
 - **n8n-skills** — https://github.com/czlonkowski/n8n-skills (MIT)
 - **langchain-agent-skills** — https://github.com/soba-labs/langchain-agent-skills (MIT)
+- **opencode-usage-tui** — https://github.com/arnabwithab/opencode-usage-tui (MIT)
+- **opencode-spend** — https://gitlab.com/jwoodwardgl/opencode-spend (MIT)
 
 `skills/natural-writing`, `skills/langflow-workflows`, and `scripts/convert-ecc.js` were written for this setup.
 
